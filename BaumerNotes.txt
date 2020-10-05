@@ -1,0 +1,44 @@
+Baumer Laser Distance Sensor notes
+https://www.baumer.com/ch/en/product-overview/distance-measurement/laser-distance-sensors-/high-performance/large-measuring-distances-up-to-1500-mm/om70-p1500-hv1500-ek/p/42057
+OM70-P1500.HV1500.EK
+
+28Sept 2020
+Device is configured using web interface. It supports a number of protocols for sending data, including UDP.
+We will use simple UDP datagrams rather than any of the more elaborate Process Control messaging systems.
+
+Trio gives a simple example talking async with NTP servers using UDP.
+We should be able to mod this directly to make a Baumer reader.
+
+The Baumer has a default ip address of 192.168.0.250 per the OM70 instruction manual 4.1.1 (pg 16)
+4.1.2 shows how to request the ip address using mDNS (perhaps it is built into Baumer?)
+but still need to know its MAC address
+
+Since baumer will be on our local switch, we need to configure it with 192.168.2(.250) address.
+Code could force that number, load from config, or use the ping approach.
+simple solution is to build it in.  Perhaps adding the ping as fallback?
+
+
+then there is
+* taking apart the udp packet and turing it into python data
+* adding baumer to the moData
+* removing Leica from moData and system
+* including proper distance retrieval in Kiln -- perhaps better to have Distance entry than Leica/Baumer?
+
+First: clean up repo
+
+wow... python struct should make unpacking the data really easy once the right format string is prepared
+https://docs.python.org/3/library/struct.html
+
+4Oct
+ok  it works for puting in/out of struct but Trio sockets dont
+Baumer folder holds some EchoTest.py for plain sockets
+need a trio echo test, then trio struct exchange
+and simple py socket reader from Baumer
+
+Baumer device is now at MIOAT lab for testing
+
+
+
+
+
+
