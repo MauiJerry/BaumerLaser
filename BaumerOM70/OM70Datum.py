@@ -227,3 +227,39 @@ class OM70Datum():
             print("timestampMicroSec not equal")
             return False
         return True
+
+if __name__ == "__main__":
+    print("test OM70Datum PackUnpack  begin")
+    b1 = OM70Datum()
+    b2 = OM70Datum()
+    print("b1:",b1)
+    print("b2:",b2)
+    t = b1.asTuple()
+    print ("tuple",t)
+    if b1.equals(b2):
+        print("B1=B2")
+    else:
+        print("B1 not = B2")
+    b2.setTestRandom()
+    b1.setTest1()
+    print("b1 Test:",b1.asTuple())
+    print("b2 Random:",b2.asTuple())
+    if b1.equals(b2):
+        print("B1=B2")
+    else:
+        print("B1 not = B2")
+    print("b1 json:", b1.asJson())
+    print("b2 json:", b2.asJson())
+    buffer = bytearray(b1.byteSize())
+    print("Now try converting to/from buffer")
+    b1.toBuffer(buffer)
+    print("buffer:", buffer)
+    b2.fromBuffer(buffer)
+    print("b1 to   buffer", b1.asTuple())
+    print("b2 from Buffer", b2.asTuple())
+    if b1.equals(b2):
+        print("B1=B2")
+    else:
+        print("B1 not = B2")
+    print("b2 from buffer as json", b2.asJson())
+    print("testDatumPackUnpack  end")

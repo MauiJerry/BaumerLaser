@@ -37,6 +37,11 @@ and simple py socket reader from Baumer
 
 Baumer device is now at MIOAT lab for testing
 
+got the web interface running, changed ip address, then had to change ip of the windows machine to see web interface again
+turned on the UDP port (looks like it might even support different ip from web?)
+Web interface reports data, UDP does not seem to be sending
+or at least my tool never receives any data
+installing wireshark to sniff packets
 
 
 
