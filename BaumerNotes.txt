@@ -42,6 +42,16 @@ turned on the UDP port (looks like it might even support different ip from web?)
 Web interface reports data, UDP does not seem to be sending
 or at least my tool never receives any data
 installing wireshark to sniff packets
+shows ARP but no other data
+
+Oct6
+Called Baumer in Southington CT for tech help
+also sent email to Daniel Olache in SC (product marketing manager)
+CT tech Peter.  800.837.9366
+not much help... doesnt seem to know sockets or similar level coding
+preiners@baumer.com 
+paul clarke is sr support engineer for sensors, on vacation this week
+
 
 
 
