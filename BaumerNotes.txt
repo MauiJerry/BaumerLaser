@@ -53,6 +53,14 @@ preiners@baumer.com
 paul clarke is sr support engineer for sensors, on vacation this week
 
 
+Oct 12
+We can now read Baumer data stream
+It is Unicast to the IP specified in the web interface.
+Data is also sent Little Endian (not network standard)
+Next up, I will clean the Baumer Example code
+then create a Trio version.
+
+
 
 
 

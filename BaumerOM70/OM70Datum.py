@@ -44,7 +44,7 @@ class OM70Datum():
         # format is used by struct in compiled format to (un)pack binary
         # to get it right, slowly add characters and test, as error msgs are not helpful
         # single byte values dont need bytearray
-        self.format = '!I B b h b ? ? x fff iiii'
+        self.format = '<I B b h b ? ? x fff iiii'
         self.st = struct.Struct(self.format)
         # default data for one record from buffer
         self.blockId = 0
@@ -54,7 +54,7 @@ class OM70Datum():
         self.quality = 2
         self.switchingState = 1
         self.alarmState = 1
-        #self.padByte = 0# bytearray(1) # we dont need this
+        self.padByte = 0# bytearray(1) # we dont need this
         self.distanceMM = 0.0
         self.rate = 0.0
         self.exposureReserve = 0.0
@@ -76,6 +76,27 @@ class OM70Datum():
         }
         s = json.dumps(d)
         return s
+    
+    def fullJsonIndent(self):
+        d = {
+            "blockId": self.blockId,
+            "frameId": self.frameId,
+            "reservedByte": self.reservedByte,
+            "frameCount": self.frameCount,
+            "quality": self.quality,
+            "switchingState":  self.switchingState,
+            "alarmState":  self.alarmState,
+            "padByte": self.padByte,
+            "distanceMM":  self.distanceMM,
+            "rate":    self.rate,
+            "exposureReserve": self.exposureReserve,
+            "delaySeconds":    self.delaySeconds,
+            "delayMicroSec":   self.delayMicroSec,
+            "timestampSec":    self.timestampSec,
+            "timestampMicroSe":        self.timestampMicroSec
+        }
+        s = json.dumps(d, indent=4)
+        return s
 
     def asTuple(self):
         return (
@@ -86,7 +107,7 @@ class OM70Datum():
         self.quality,
         self.switchingState,
         self.alarmState,
-        #self.padByte,
+        self.padByte,
         self.distanceMM,
         self.rate,
         self.exposureReserve,
@@ -117,6 +138,7 @@ class OM70Datum():
 
     def fromBuffer(self, buffer):
         t = self.st.unpack(buffer)
+        print("fromBuffer tuple: ",t)
         self.fromTuple(t)
 
     def toBuffer(self, buffer):
