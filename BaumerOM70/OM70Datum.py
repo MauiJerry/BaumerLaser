@@ -42,6 +42,10 @@ _om70struct = struct.Struct(_structFormat)
 
 _OM70DatumT = namedtuple('OM70Datum', [*_memberNames], defaults=[*_memberDefaults])
 
+def byteSize():
+    return struct.calcsize(_structFormat)
+
+
 class OM70Datum(_OM70DatumT):
     """ Baumer OM70 UDP Packet Datum - packing unpacking, test and JSON important bits  """
     # uint32 (4bytes) BlockID
@@ -101,9 +105,6 @@ class OM70Datum(_OM70DatumT):
     #
     # def timestampMicroSec(self):
     #     return getattr(self,"timestampMicroSec")
-
-    def byteSize(self):
-        return struct.calcsize(_structFormat)
 
     def asJson(self):
         s = json.dumps(self._asdict())
@@ -201,7 +202,7 @@ if __name__ == "__main__":
         print("B1 not = B2 randoms not equal")
     print("b1 json:", b1.asJson())
     print("b2 json:", b2.asJson())
-    buffer = bytearray(b1.byteSize())
+    buffer = bytearray(byteSize())
     print("Now try converting to/from buffer")
     b1.toBuffer(buffer)
     print("buffer:", buffer)

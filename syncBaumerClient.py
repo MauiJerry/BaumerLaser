@@ -34,10 +34,13 @@ def receiveOm70Data():
         #     socket.SOCK_DGRAM,  # UDP
         # )
         udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        udp_sock.bind(("", 12345))
+    except:
         log.error("Exception caught creating socket: ", exc_info=True)
         return
     #datum = OM70Datum.OM70Datum()
-    buffer = bytearray(datum.byteSize())
+    data = bytearray(OM70Datum.byteSize())
     buffSize = OM70Datum.byteSize()
     while True:
         # recvfrom
