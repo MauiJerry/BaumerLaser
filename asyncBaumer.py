@@ -2,6 +2,7 @@
 # default ip address is 198.162.0.250
 # our rPi is on a dedicated switch on the 198.162.2.x network
 # so that needs to be changed
+#TODO also changed underlying OM70Datum into namedTuple, so more rework
 import sys
 this = sys.modules[__name__]
 import trio
@@ -63,7 +64,7 @@ class BaumerOM70Test():
             type=trio.socket.SOCK_DGRAM,  # UDP
         )
         with trio.move_on_after(moveOnTime):
-            self.datum1.setTestRandom()
+            self.datum1.makeRandom()
             print("send Random DM70 : ", self.datum1.asTuple(), self.datum1.asJson())
             self.datum1.toBuffer(self.buffer)
             send_sock.sendto(self.buffer, self.udpAddr)
@@ -80,7 +81,7 @@ def testDatumPackUnpack():
         print("B1=B2")
     else:
         print("B1 not = B2")
-    b2.setTestRandom()
+    b2.makeRandom()
     b1.setTest1()
     print("b1 Test:",b1.asTuple())
     print("b2 Random:",b2.asTuple())

@@ -19,11 +19,12 @@ port = 12345
 baumer_udpAddr = ('192.168.2.250', port )
 baumer_udpAddr = ('', port)
 
-def disectPacket(data):
+def packetLittleVsBigEndian(data):
+    """unpack and show first int32 as little and big endian"""
     print("Packet", data)
     idLittle = struct.unpack('<I',data[0:4])
     idBig = struct.unpack('>I',data[0:4])
-    print("  Id:", idLittle, idBig)
+    print("   ID as little/big:", idLittle, idBig)
 
 def receiveOm70Data():
     print("Begin receiveOm70Data ", baumer_udpAddr)
@@ -33,25 +34,21 @@ def receiveOm70Data():
         #     socket.SOCK_DGRAM,  # UDP
         # )
         udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        udp_sock.bind(baumer_udpAddr)
-    except:
         log.error("Exception caught creating socket: ", exc_info=True)
         return
-    datum = OM70Datum.OM70Datum()
+    #datum = OM70Datum.OM70Datum()
     buffer = bytearray(datum.byteSize())
-    buffSize = datum.byteSize()
+    buffSize = OM70Datum.byteSize()
     while True:
         # recvfrom
         try:
             data, address = udp_sock.recvfrom(buffSize)
             print("Received data from:", address)
             print("  raw:", data)
-            disectPacket(data)
-            datum.fromBuffer(data)
-            print("  OM70: ", datum.asTuple())
-            #print("  OM70: ", datum.fullJsonIndent())
-            print("  OM70: ", datum.asJson())
+            packetLittleVsBigEndian(data)
+            datum = OM70Datum.fromBuffer(data)
+            print("  OM70: ", datum)
+            print("  OM70: ", datum.asJsonIndent())
         except:
             log.error("Exception caught in Forever Loop: ", exc_info=True)
             break
