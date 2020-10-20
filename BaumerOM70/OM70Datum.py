@@ -1,7 +1,26 @@
-# Baumer OM-70 test using Trio Sockets
-# default ip address is 198.162.0.250
-# our rPi is on a dedicated switch on the 198.162.2.x network
-# so that needs to be changed
+# Baumer OM-70 UDP Packet Datum
+# The data fields held in a UDP packet from the OM70
+# uses struct to translate from/to binary array
+# holds data in a namedTuple, also available as Dictionary and JSON string
+# also includes functions to create some test records
+# and a main() to run some unit tests
+# per the manual UDP fields are:
+# uint32 (4bytes) BlockID
+# uint8 (1byte) FrameType 0= singleFrame 1= first 2 = later frames
+# uint8 reserved
+# uint16 (2b) frame counter; type1: total count type2: current count
+# uint8 Quality 0=ok 1=low 2=nosignal
+# bool 1b State Switching 0= active 1= inactive
+# bool 1b State Alarm 0= active 1=inactive
+# 1b padding (no python var equiv required)
+# float32 (4b) distance in millimeters
+# float32 measurement rate
+# float32 exposure reserve
+# uint32 response delay seconds
+# uint32 response delay microsec
+# timestamp seconds
+# timestamp microsec
+
 import sys
 this = sys.modules[__name__]
 import struct
@@ -13,20 +32,38 @@ import logging
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
 
-# Hmm whats a good way to address items - id in tuple t[n] or getattr(t,name)
-def DISTANCEMM():
-    return 9
-def keyForDistance ():
-    return "DistanceMM"
-def keyForTimeStamp():
-    return "Timestamp"
-def keyForQuality():
-    return "Quality"
-def keyForAlarmState():
-    return "AlarmState"
-def keyForSwitchState():
-    return "SwitchState"
+# Constants for addressing items in dictionary or tuple
+# _NAME are string names for dictionary; match names in OM70 manual
+BLOCKID_NAME = "blockId"
+FRAMEID_NAME = "frameid"
+RESERVEDBYTE_NAME = "reservedByte"
+FRAMECOUNT_NAME = "frameCount"
+QUALITY_NAME = "quality"
+SWITCHINGSTATE_NAME = "switchingState"
+ALARMSTATE_NAME = "alarmState"
+DISTANCEMM_NAME = "distanceMM"
+RATE_NAME = "rate"
+EXPOSURERESERVE_NAME = "exposureReserve"
+DELAYSECONDS_NAME = "delaySeconds"
+DELAYMICROSEC_NAME = "delayMicroSec"
+TIMESTAMPSEC_NAME = "timestampSec"
+TIMESTAMPMICROSEC_NAME = "timestampMicroSec"
 
+# _IDX are index into UDP packet and thus tuple
+BLOCKID_IDX = 0
+FRAMEID_IDX = 1
+RESERVEDBYTE_IDX = 2
+FRAMECOUNT_IDX = 3
+QUALITY_IDX = 4
+SWITCHINGSTATE_IDX = 5
+ALARMSTATE_IDX = 6
+DISTANCEMM_IDX = 7
+RATE_IDX = 8
+EXPOSURERESERVE_IDX = 9
+DELAYSECONDS_IDX = 10
+DELAYMICROSEC_IDX = 11
+TIMESTAMPSEC_IDX = 12
+TIMESTAMPMICROSEC_IDX = 13
 
 # memberNames for namedTuple
 _memberNames = ("blockId", "frameId", "reservedByte", "frameCount", "quality",
@@ -45,66 +82,50 @@ _OM70DatumT = namedtuple('OM70Datum', [*_memberNames], defaults=[*_memberDefault
 def byteSize():
     return struct.calcsize(_structFormat)
 
-
 class OM70Datum(_OM70DatumT):
     """ Baumer OM70 UDP Packet Datum - packing unpacking, test and JSON important bits  """
-    # uint32 (4bytes) BlockID
-    # uint8 (1byte) FrameType 0= singleFrame 1= first 2 = later frames
-    # uint8 reserved
-    # uint16 (2b) frame counter; type1: total count type2: current count
-    # uint8 Quality 0=ok 1=low 2=nosignal
-    # bool 1b State Switching 0= active 1= inactive
-    # bool 1b State Alarm 0= active 1=inactive
-    # 1b padding
-    # float32 (4b) distance in mm
-    # float32 measurementrate
-    # float32 exposure reserve
-    # uint32 response delay seconds
-    # uint32 response delay microsec
-    # timestamp seconds
-    # timestamp microsec
 
     # def blockId(self):
-    #     return getattr(self,"blockId")
+    #     return self[ ]"blockId")
     #
     # def frameId(self):
-    #     return getattr(self,"frameId")
+    #     return self[ ]"frameId")
     #
     # def reservedByte(self):
-    #     return getattr(self,"reservedByte")
+    #     return self[ ]"reservedByte")
     #
     # def frameCount(self):
-    #     return getattr(self,"frameCount")
+    #     return self[ ]"frameCount")
     #
     # def quality(self):
-    #     return getattr(self,"quality")
+    #     return self[ ]"quality")
     #
     # def switchingState(self):
-    #     return getattr(self,"switchingState")
+    #     return self[ ]"switchingState")
     #
     # def alarmState(self):
-    #     return getattr(self,"alarmState")
+    #     return self[ ]"alarmState")
     #
     # def distanceMM(self):
-    #     return getattr(self,"distanceMM")
+    #     return self[ ]"distanceMM")
     #
     # def rate(self):
-    #     return getattr(self,"rate")
+    #     return self[ ]"rate")
     #
     # def exposureReserve(self):
-    #     return getattr(self,"exposureReserve")
+    #     return self[ ]"exposureReserve")
     #
     # def delaySeconds(self):
-    #     return getattr(self,"delaySeconds")
+    #     return self[ ]"delaySeconds")
     #
     # def delayMicroSec(self):
-    #     return getattr(self,"delayMicroSec")
+    #     return self[ ]"delayMicroSec")
     #
     # def timestampSec(self):
-    #     return getattr(self,"timestampSec")
+    #     return self[ ]"timestampSec")
     #
     # def timestampMicroSec(self):
-    #     return getattr(self,"timestampMicroSec")
+    #     return self[ ]"timestampMicroSec")
 
     def asJson(self):
         s = json.dumps(self._asdict())
@@ -114,69 +135,75 @@ class OM70Datum(_OM70DatumT):
         s = json.dumps(self._asdict(), indent=4)
         return s
 
-    def toBuffer(self, buffer):
-        _om70struct.pack_into(buffer, 0, *self)
+    def asDict(self):
+        return self._asdict()
 
     def equals(self,other):
-        if not getattr(self,"blockId") == getattr(other,"blockId"):
-            print("blockId not equal ",getattr(self,"blockId"),getattr(other,"blockId"))
+        if not self[BLOCKID_IDX] == other[BLOCKID_IDX]:
+            print("blockId not equal ",self[BLOCKID_IDX],other[BLOCKID_IDX])
             return False
-        if not getattr(self,"frameId") == getattr(other,"frameId"):
+        if not self[FRAMEID_IDX] == other[FRAMEID_IDX]:
             print("frameId not equal")
             return False
-        if not getattr(self,"reservedByte") == getattr(other,"reservedByte"):
+        if not self[RESERVEDBYTE_IDX] == other[RESERVEDBYTE_IDX]:
             print("reservedByte not equal")
             return False
-        if not getattr(self,"frameCount") == getattr(other,"frameCount"):
+        if not self[FRAMECOUNT_IDX] == other[FRAMECOUNT_IDX]:
             print("frameCount not equal")
             return False
-        if not getattr(self,"quality") == getattr(other,"quality"):
+        if not self[QUALITY_IDX] == other[QUALITY_IDX]:
             print("quality not equal")
             return False
-        if not getattr(self,"switchingState") == getattr(other,"switchingState"):
+        if not self[SWITCHINGSTATE_IDX] == other[SWITCHINGSTATE_IDX]:
             print("switchingState not equal")
             return False
-        if not getattr(self,"alarmState") == getattr(other,"alarmState"):
+        if not self[ALARMSTATE_IDX] == other[ALARMSTATE_IDX]:
             print("alarmState not equal")
             return False
-        if not getattr(self,"distanceMM") == getattr(other,"distanceMM"):
-            if math.isclose(getattr(self,"distanceMM"), getattr(other,"distanceMM"), rel_tol=1e-5):
-                print("distance close ",getattr(self,"distanceMM"), getattr(other,"distanceMM"))
+        if not self[DISTANCEMM_IDX] == other[DISTANCEMM_IDX]:
+            if math.isclose(self[DISTANCEMM_IDX], other[DISTANCEMM_IDX], rel_tol=1e-5):
+                print("distance close ",self[DISTANCEMM_IDX], other[DISTANCEMM_IDX])
             else:
                 print("distance not equal")
                 return False
-        if not getattr(self,"rate") == getattr(other,"rate"):
-            if math.isclose(getattr(self,"rate"), getattr(other,"rate"), rel_tol=1e-5):
-                print("rate close ", getattr(self,"rate"), getattr(other,"rate"))
+        if not self[RATE_IDX] == other[RATE_IDX]:
+            if math.isclose(self[RATE_IDX], other[RATE_IDX], rel_tol=1e-5):
+                print("rate close ", self[RATE_IDX], other[RATE_IDX])
             else:
                 print("rate not equal")
                 return False
-        if not getattr(self,"exposureReserve") == getattr(other,"exposureReserve"):
-            if math.isclose(getattr(self,"exposureReserve"), getattr(other,"exposureReserve"), rel_tol=1e-5):
-                print("exposureReserve close ", getattr(self,"exposureReserve"), getattr(other,"exposureReserve"))
+        if not self[EXPOSURERESERVE_IDX]== other[EXPOSURERESERVE_IDX]:
+            if math.isclose(self[EXPOSURERESERVE_IDX], other[EXPOSURERESERVE_IDX], rel_tol=1e-5):
+                print("exposureReserve close ", self[EXPOSURERESERVE_IDX], other[EXPOSURERESERVE_IDX])
             else:
                 print("exposureReserve not close or equal")
                 return False
-        if not getattr(self,"delaySeconds") == getattr(other,"delaySeconds"):
+        if not self[DELAYSECONDS_IDX] == other[DELAYSECONDS_IDX]:
             print("delaySeconds not equal")
             return False
-        if not getattr(self,"delayMicroSec") == getattr(other,"delayMicroSec"):
+        if not self[DELAYMICROSEC_IDX] == other[DELAYMICROSEC_IDX]:
             print("delayMicroSec not equal")
             return False
-        if not getattr(self,"timestampSec") == getattr(other,"timestampSec"):
+        if not self[TIMESTAMPSEC_IDX] == other[TIMESTAMPSEC_IDX]:
             print("timestampSec not equal")
             return False
-        if not getattr(self,"timestampMicroSec") == getattr(other,"timestampMicroSec"):
+        if not self[TIMESTAMPMICROSEC_IDX] == other[TIMESTAMPMICROSEC_IDX]:
             print("timestampMicroSec not equal")
             return False
         return True
 
+    def toBuffer(self, buffer):
+        """pack the OM70 namedTuple into a buffer for UDP send"""
+        _om70struct.pack_into(buffer, 0, *self)
+
 def fromBuffer(buffer):
-    t = _om70struct.unpack(buffer)
-    print("fromBuffer tuple: ", t)
-    return OM70Datum._make(t)
+    """Treat Buffer as a raw UDP packet from OM70, unpack and create OM70Datum namedTuple"""
+    nt = OM70Datum._make(_om70struct.unpack(buffer))
+    print("fromBuffer tuple: ", nt)
+    return nt
 
 def makeRandomOm70():
+    """test method to create random values in OM70 namedTuple"""
     t = (random.randrange(0,99), random.randrange(0,128), random.randrange(0,128),
          random.randrange(0,10), random.randrange(0,2), 0, 1, random.random() * 10.0,
          2.0, 0.0, 1, 5, random.randrange(0,100), random.randrange(0,1000))

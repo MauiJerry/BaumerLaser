@@ -35,7 +35,7 @@ def receiveOm70Data():
         # )
         udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        udp_sock.bind(("", 12345))
+        udp_sock.bind(baumer_udpAddr) #("", 12345))
     except:
         log.error("Exception caught creating socket: ", exc_info=True)
         return
