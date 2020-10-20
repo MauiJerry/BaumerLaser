@@ -85,47 +85,8 @@ def byteSize():
 class OM70Datum(_OM70DatumT):
     """ Baumer OM70 UDP Packet Datum - packing unpacking, test and JSON important bits  """
 
-    # def blockId(self):
-    #     return self[ ]"blockId")
-    #
-    # def frameId(self):
-    #     return self[ ]"frameId")
-    #
-    # def reservedByte(self):
-    #     return self[ ]"reservedByte")
-    #
-    # def frameCount(self):
-    #     return self[ ]"frameCount")
-    #
-    # def quality(self):
-    #     return self[ ]"quality")
-    #
-    # def switchingState(self):
-    #     return self[ ]"switchingState")
-    #
-    # def alarmState(self):
-    #     return self[ ]"alarmState")
-    #
-    # def distanceMM(self):
-    #     return self[ ]"distanceMM")
-    #
-    # def rate(self):
-    #     return self[ ]"rate")
-    #
-    # def exposureReserve(self):
-    #     return self[ ]"exposureReserve")
-    #
-    # def delaySeconds(self):
-    #     return self[ ]"delaySeconds")
-    #
-    # def delayMicroSec(self):
-    #     return self[ ]"delayMicroSec")
-    #
-    # def timestampSec(self):
-    #     return self[ ]"timestampSec")
-    #
-    # def timestampMicroSec(self):
-    #     return self[ ]"timestampMicroSec")
+    def distancemm(self):
+        return self[DISTANCEMM_IDX]
 
     def asJson(self):
         s = json.dumps(self._asdict())

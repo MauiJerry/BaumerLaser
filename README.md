@@ -15,4 +15,9 @@ Two tidbits NOT mentioned in the manual:
 1) Baumer uses Little Endian binary format for the data packets, while "network format" standard is BigEndian. Easy enough for struct module to handle
 2) Web interface provides IP address/port for UDP - this is the TARGET device for 1:1 communication. NOT broadcast.
 
- 
+BaumerOM70.OM70Datum: 
+  module defines a subclass of namedTuple and methods to extract and create from a Binary Buffer, such as returned by a socket receive.
+Methods are also provided to format the data as a Dictionary and json. CONSTANTS are provided to access either the tuple by index or dictionary by name.
+Module also includes a method to generate random Datum and some simple testing.
+
+NOTE: method does NOT catch any execptions, as might happen if the provided buffer does not contain correct data.

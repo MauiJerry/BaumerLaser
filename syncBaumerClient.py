@@ -16,8 +16,7 @@ from BaumerOM70 import OM70Datum
 
 # address is set in web interface "Process Interface
 port = 12345
-baumer_udpAddr = ('192.168.2.250', port )
-baumer_udpAddr = ('', port)
+baumer_udpAddr = ('', port) # accept any sending address
 
 def packetLittleVsBigEndian(data):
     """unpack and show first int32 as little and big endian"""
@@ -34,12 +33,10 @@ def receiveOm70Data():
         #     socket.SOCK_DGRAM,  # UDP
         # )
         udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        udp_sock.bind(baumer_udpAddr) #("", 12345))
+        udp_sock.bind(baumer_udpAddr)
     except:
         log.error("Exception caught creating socket: ", exc_info=True)
         return
-    #datum = OM70Datum.OM70Datum()
     data = bytearray(OM70Datum.byteSize())
     buffSize = OM70Datum.byteSize()
     while True:
@@ -50,6 +47,7 @@ def receiveOm70Data():
             print("  raw:", data)
             packetLittleVsBigEndian(data)
             datum = OM70Datum.fromBuffer(data)
+            print("  OM70 dist:", datum.distancemm())
             print("  OM70: ", datum)
             print("  OM70: ", datum.asJsonIndent())
         except:
