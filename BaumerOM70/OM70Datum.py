@@ -1,254 +1,174 @@
-# Baumer OM-70 test using Trio Sockets
-# default ip address is 198.162.0.250
-# our rPi is on a dedicated switch on the 198.162.2.x network
-# so that needs to be changed
+# Baumer OM-70 UDP Packet Datum
+# The data fields held in a UDP packet from the OM70
+# uses struct to translate from/to binary array
+# holds data in a namedTuple, also available as Dictionary and JSON string
+# also includes functions to create some test records
+# and a main() to run some unit tests
+# per the manual UDP fields are:
+# uint32 (4bytes) BlockID
+# uint8 (1byte) FrameType 0= singleFrame 1= first 2 = later frames
+# uint8 reserved
+# uint16 (2b) frame counter; type1: total count type2: current count
+# uint8 Quality 0=ok 1=low 2=nosignal
+# bool 1b State Switching 0= active 1= inactive
+# bool 1b State Alarm 0= active 1=inactive
+# 1b padding (no python var equiv required)
+# float32 (4b) distance in millimeters
+# float32 measurement rate
+# float32 exposure reserve
+# uint32 response delay seconds
+# uint32 response delay microsec
+# timestamp seconds
+# timestamp microsec
+
 import sys
 this = sys.modules[__name__]
 import struct
 import random
 import json
 import math
+from collections import namedtuple
 import logging
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
 
-def keyForDistance ():
-    return "DistanceMM"
-def keyForTimeStamp():
-    return "Timestamp"
-def keyForQuality():
-    return "Quality"
-def keyForAlarmState():
-    return "AlarmState"
-def keyForSwitchState():
-    return "SwitchState"
+# Constants for addressing items in dictionary or tuple
+# _NAME are string names for dictionary; match names in OM70 manual
+BLOCKID_NAME = "blockId"
+FRAMEID_NAME = "frameid"
+RESERVEDBYTE_NAME = "reservedByte"
+FRAMECOUNT_NAME = "frameCount"
+QUALITY_NAME = "quality"
+SWITCHINGSTATE_NAME = "switchingState"
+ALARMSTATE_NAME = "alarmState"
+DISTANCEMM_NAME = "distanceMM"
+RATE_NAME = "rate"
+EXPOSURERESERVE_NAME = "exposureReserve"
+DELAYSECONDS_NAME = "delaySeconds"
+DELAYMICROSEC_NAME = "delayMicroSec"
+TIMESTAMPSEC_NAME = "timestampSec"
+TIMESTAMPMICROSEC_NAME = "timestampMicroSec"
 
-class OM70Datum():
+# _IDX are index into UDP packet and thus tuple
+BLOCKID_IDX = 0
+FRAMEID_IDX = 1
+RESERVEDBYTE_IDX = 2
+FRAMECOUNT_IDX = 3
+QUALITY_IDX = 4
+SWITCHINGSTATE_IDX = 5
+ALARMSTATE_IDX = 6
+DISTANCEMM_IDX = 7
+RATE_IDX = 8
+EXPOSURERESERVE_IDX = 9
+DELAYSECONDS_IDX = 10
+DELAYMICROSEC_IDX = 11
+TIMESTAMPSEC_IDX = 12
+TIMESTAMPMICROSEC_IDX = 13
+
+# memberNames for namedTuple
+_memberNames = ("blockId", "frameId", "reservedByte", "frameCount", "quality",
+               "switchingState", "alarmState", "distanceMM", "rate", "exposureReserve",
+               "delaySeconds", "delayMicroSec", "timestampSec", "timestampMicroSec")
+_memberDefaults = (0, 0, 0, 0, 2, True, True, 0.0, 0.0, 0.0, 0, 0, 0, 0)
+# format is used by struct in compiled format to (un)pack binary
+# to get it right, slowly add characters and test, as error msgs are not helpful
+# single byte values dont need bytearray
+_structFormat = '<I B b h b ? ? x fff iiii'
+# common struct for all class members to use
+_om70struct = struct.Struct(_structFormat)
+
+_OM70DatumT = namedtuple('OM70Datum', [*_memberNames], defaults=[*_memberDefaults])
+
+def byteSize():
+    return struct.calcsize(_structFormat)
+
+class OM70Datum(_OM70DatumT):
     """ Baumer OM70 UDP Packet Datum - packing unpacking, test and JSON important bits  """
-    # uint32 (4bytes) BlockID
-    # uint8 (1byte) FrameType 0= singleFrame 1= first 2 = later frames
-    # uint8 reserved
-    # uint16 (2b) frame counter; type1: total count type2: current count
-    # uint8 Quality 0=ok 1=low 2=nosignal
-    # bool 1b State Switching 0= active 1= inactive
-    # bool 1b State Alarm 0= active 1=inactive
-    # 1b padding
-    # float32 (4b) distance in mm
-    # float32 measurementrate
-    # float32 exposure reserve
-    # uint32 response delay seconds
-    # uint32 response delay microsec
-    # timestamp seconds
-    # timestamp microsec
-    def __init__(self):
-        # format is used by struct in compiled format to (un)pack binary
-        # to get it right, slowly add characters and test, as error msgs are not helpful
-        # single byte values dont need bytearray
-        self.format = '<I B b h b ? ? x fff iiii'
-        self.st = struct.Struct(self.format)
-        # default data for one record from buffer
-        self.blockId = 0
-        self.frameId = 0 #bytearray([0])
-        self.reservedByte = 0 #bytearray(1)
-        self.frameCount = 0
-        self.quality = 2
-        self.switchingState = 1
-        self.alarmState = 1
-        self.padByte = 0# bytearray(1) # we dont need this
-        self.distanceMM = 0.0
-        self.rate = 0.0
-        self.exposureReserve = 0.0
-        self.delaySeconds = 0
-        self.delayMicroSec = 0
-        self.timestampSec =0
-        self.timestampMicroSec = 0
 
-    def byteSize(self):
-        return struct.calcsize(self.st.format)
+    def distancemm(self):
+        return self[DISTANCEMM_IDX]
 
     def asJson(self):
-        d = {
-            keyForDistance(): self.distanceMM,
-            keyForAlarmState(): self.alarmState,
-            keyForQuality(): self.quality,
-            keyForTimeStamp(): self.timestampSec + (self.timestampMicroSec/1000),
-            keyForSwitchState(): self.switchingState,
-        }
-        s = json.dumps(d)
+        s = json.dumps(self._asdict())
         return s
     
-    def fullJsonIndent(self):
-        d = {
-            "blockId": self.blockId,
-            "frameId": self.frameId,
-            "reservedByte": self.reservedByte,
-            "frameCount": self.frameCount,
-            "quality": self.quality,
-            "switchingState":  self.switchingState,
-            "alarmState":  self.alarmState,
-            "padByte": self.padByte,
-            "distanceMM":  self.distanceMM,
-            "rate":    self.rate,
-            "exposureReserve": self.exposureReserve,
-            "delaySeconds":    self.delaySeconds,
-            "delayMicroSec":   self.delayMicroSec,
-            "timestampSec":    self.timestampSec,
-            "timestampMicroSe":        self.timestampMicroSec
-        }
-        s = json.dumps(d, indent=4)
+    def asJsonIndent(self):
+        s = json.dumps(self._asdict(), indent=4)
         return s
 
-    def asTuple(self):
-        return (
-        self.blockId,
-        self.frameId,
-        self.reservedByte,
-        self.frameCount,
-        self.quality,
-        self.switchingState,
-        self.alarmState,
-        self.padByte,
-        self.distanceMM,
-        self.rate,
-        self.exposureReserve,
-        self.delaySeconds,
-        self.delayMicroSec,
-        self.timestampSec,
-        self.timestampMicroSec
-        )
-
-    def fromTuple(self,tuple):
-        (
-            self.blockId,
-            self.frameId,
-            self.reservedByte,
-            self.frameCount,
-            self.quality,
-            self.switchingState,
-            self.alarmState,
-            #self.padByte,
-            self.distanceMM,
-            self.rate,
-            self.exposureReserve,
-            self.delaySeconds,
-            self.delayMicroSec,
-            self.timestampSec,
-            self.timestampMicroSec
-        ) = tuple
-
-    def fromBuffer(self, buffer):
-        t = self.st.unpack(buffer)
-        print("fromBuffer tuple: ",t)
-        self.fromTuple(t)
-
-    def toBuffer(self, buffer):
-        t = self.asTuple()
-        self.st.pack_into(buffer, 0,
-            self.blockId,
-            self.frameId,
-            self.reservedByte,
-            self.frameCount,
-            self.quality,
-            self.switchingState,
-            self.alarmState,
-            #self.padByte,
-            self.distanceMM,
-            self.rate,
-            self.exposureReserve,
-            self.delaySeconds,
-            self.delayMicroSec,
-            self.timestampSec,
-            self.timestampMicroSec
-        )
-
-    def setTest1(self):
-        self.blockId = 1
-        self.frameId = 1
-        self.reservedByte = 1#bytearray(1)
-        self.frameCount = 1
-        self.quality = 0
-        self.switchingState = 0
-        self.alarmState = 1
-        #self.padByte = bytearray(1)
-        self.distanceMM = 1.01
-        self.rate = 2.0
-        self.exposureReserve = 0.0
-        self.delaySeconds = 1
-        self.delayMicroSec = 5
-        self.timestampSec = 10
-        self.timestampMicroSec = 2
-
-    def setTestRandom(self):
-        self.blockId = random.randrange(0,99)
-        self.frameId = random.randrange(0,128)
-        self.reservedByte = random.randrange(0,128)
-        self.frameCount = random.randrange(0,10)
-        self.quality = random.randrange(0,2)
-        self.switchingState = 0
-        self.alarmState = 1
-        self.padByte = bytearray(1)
-        self.distanceMM = random.random() * 10.0
-        self.rate = 2.0
-        self.exposureReserve = 0.0
-        self.delaySeconds = 1
-        self.delayMicroSec = 5
-        self.timestampSec = random.randrange(0,100)
-        self.timestampMicroSec = random.randrange(0,1000)
+    def asDict(self):
+        return self._asdict()
 
     def equals(self,other):
-        if not self.blockId == other.blockId:
-            print("blockId not equal")
+        if not self[BLOCKID_IDX] == other[BLOCKID_IDX]:
+            print("blockId not equal ",self[BLOCKID_IDX],other[BLOCKID_IDX])
             return False
-        if not self.frameId == other.frameId:
+        if not self[FRAMEID_IDX] == other[FRAMEID_IDX]:
             print("frameId not equal")
             return False
-        if not self.reservedByte == other.reservedByte:
+        if not self[RESERVEDBYTE_IDX] == other[RESERVEDBYTE_IDX]:
             print("reservedByte not equal")
             return False
-        if not self.frameCount == other.frameCount:
+        if not self[FRAMECOUNT_IDX] == other[FRAMECOUNT_IDX]:
             print("frameCount not equal")
             return False
-        if not self.quality == other.quality:
+        if not self[QUALITY_IDX] == other[QUALITY_IDX]:
             print("quality not equal")
             return False
-        if not self.switchingState == other.switchingState:
+        if not self[SWITCHINGSTATE_IDX] == other[SWITCHINGSTATE_IDX]:
             print("switchingState not equal")
             return False
-        if not self.alarmState == other.alarmState:
+        if not self[ALARMSTATE_IDX] == other[ALARMSTATE_IDX]:
             print("alarmState not equal")
             return False
-        if not self.distanceMM == other.distanceMM:
-            if math.isclose(self.distanceMM, other.distanceMM, rel_tol=1e-5):
-                print("distance close ",self.distanceMM, other.distanceMM)
+        if not self[DISTANCEMM_IDX] == other[DISTANCEMM_IDX]:
+            if math.isclose(self[DISTANCEMM_IDX], other[DISTANCEMM_IDX], rel_tol=1e-5):
+                print("distance close ",self[DISTANCEMM_IDX], other[DISTANCEMM_IDX])
             else:
                 print("distance not equal")
                 return False
-        if not self.rate == other.rate:
-            if math.isclose(self.rate, other.rate, rel_tol=1e-5):
-                print("rate close ", self.rate, other.rate)
+        if not self[RATE_IDX] == other[RATE_IDX]:
+            if math.isclose(self[RATE_IDX], other[RATE_IDX], rel_tol=1e-5):
+                print("rate close ", self[RATE_IDX], other[RATE_IDX])
             else:
                 print("rate not equal")
                 return False
-        if not self.exposureReserve == other.exposureReserve:
-            if not self.exposureReserve == other.exposureReserve:
-                if math.isclose(self.exposureReserve, other.exposureReserve, rel_tol=1e-5):
-                    print("exposureReserve close ", self.exposureReserve, other.exposureReserve)
-                else:
-                    print("exposureReserve not close or equal")
-                    return False
-        if not self.delaySeconds == other.delaySeconds:
+        if not self[EXPOSURERESERVE_IDX]== other[EXPOSURERESERVE_IDX]:
+            if math.isclose(self[EXPOSURERESERVE_IDX], other[EXPOSURERESERVE_IDX], rel_tol=1e-5):
+                print("exposureReserve close ", self[EXPOSURERESERVE_IDX], other[EXPOSURERESERVE_IDX])
+            else:
+                print("exposureReserve not close or equal")
+                return False
+        if not self[DELAYSECONDS_IDX] == other[DELAYSECONDS_IDX]:
             print("delaySeconds not equal")
             return False
-        if not self.delayMicroSec == other.delayMicroSec:
+        if not self[DELAYMICROSEC_IDX] == other[DELAYMICROSEC_IDX]:
             print("delayMicroSec not equal")
             return False
-        if not self.timestampSec == other.timestampSec:
+        if not self[TIMESTAMPSEC_IDX] == other[TIMESTAMPSEC_IDX]:
             print("timestampSec not equal")
             return False
-        if not self.timestampMicroSec == other.timestampMicroSec:
+        if not self[TIMESTAMPMICROSEC_IDX] == other[TIMESTAMPMICROSEC_IDX]:
             print("timestampMicroSec not equal")
             return False
         return True
+
+    def toBuffer(self, buffer):
+        """pack the OM70 namedTuple into a buffer for UDP send"""
+        _om70struct.pack_into(buffer, 0, *self)
+
+def fromBuffer(buffer):
+    """Treat Buffer as a raw UDP packet from OM70, unpack and create OM70Datum namedTuple"""
+    nt = OM70Datum._make(_om70struct.unpack(buffer))
+    print("fromBuffer tuple: ", nt)
+    return nt
+
+def makeRandomOm70():
+    """test method to create random values in OM70 namedTuple"""
+    t = (random.randrange(0,99), random.randrange(0,128), random.randrange(0,128),
+         random.randrange(0,10), random.randrange(0,2), 0, 1, random.random() * 10.0,
+         2.0, 0.0, 1, 5, random.randrange(0,100), random.randrange(0,1000))
+    return OM70Datum._make(t)
 
 if __name__ == "__main__":
     print("test OM70Datum PackUnpack  begin")
@@ -256,32 +176,30 @@ if __name__ == "__main__":
     b2 = OM70Datum()
     print("b1:",b1)
     print("b2:",b2)
-    t = b1.asTuple()
-    print ("tuple",t)
     if b1.equals(b2):
-        print("B1=B2")
+        print("B1=B2 defaults are equal")
     else:
-        print("B1 not = B2")
-    b2.setTestRandom()
-    b1.setTest1()
-    print("b1 Test:",b1.asTuple())
-    print("b2 Random:",b2.asTuple())
+        print("B1 not = B2 defaults not equal")
+    b2 = makeRandomOm70()
+    b1= makeRandomOm70()
+    print("b1 Test:",b1)
+    print("b2 Random:",b2)
     if b1.equals(b2):
-        print("B1=B2")
+        print("B1=B2 randoms are but should not be equal" )
     else:
-        print("B1 not = B2")
+        print("B1 not = B2 randoms not equal")
     print("b1 json:", b1.asJson())
     print("b2 json:", b2.asJson())
-    buffer = bytearray(b1.byteSize())
+    buffer = bytearray(byteSize())
     print("Now try converting to/from buffer")
     b1.toBuffer(buffer)
     print("buffer:", buffer)
-    b2.fromBuffer(buffer)
-    print("b1 to   buffer", b1.asTuple())
-    print("b2 from Buffer", b2.asTuple())
+    b2 = fromBuffer(buffer)
+    print("b1 to   buffer", b1)
+    print("b2 from Buffer", b2)
     if b1.equals(b2):
-        print("B1=B2")
+        print("B1=B2 Conversion to/from buffer works")
     else:
-        print("B1 not = B2")
-    print("b2 from buffer as json", b2.asJson())
+        print("B1 not = B2 Conversion to/from buffer Fails")
+    print("b2 from buffer as json", b2.asJsonIndent())
     print("testDatumPackUnpack  end")
