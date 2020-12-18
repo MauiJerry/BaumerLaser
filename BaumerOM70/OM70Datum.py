@@ -82,6 +82,9 @@ _OM70DatumT = namedtuple('OM70Datum', [*_memberNames], defaults=[*_memberDefault
 def byteSize():
     return struct.calcsize(_structFormat)
 
+def names():
+    return _memberNames
+
 class OM70Datum(_OM70DatumT):
     """ Baumer OM70 UDP Packet Datum - packing unpacking, test and JSON important bits  """
 
@@ -89,17 +92,20 @@ class OM70Datum(_OM70DatumT):
         return self[DISTANCEMM_IDX]
 
     def asJson(self):
-        s = json.dumps(self._asdict())
+        s = json.dumps(self.asDict())
         return s
     
     def asJsonIndent(self):
-        s = json.dumps(self._asdict(), indent=4)
+        s = json.dumps(self.asDict(), indent=4)
         return s
 
     def asDict(self):
+        #d = datum.asDict()
+        #TODO: integrate modoc timestamp into dict
         return self._asdict()
 
     def equals(self,other):
+        """a verbose test for equality/close-enough that Prints not equal paerts"""
         if not self[BLOCKID_IDX] == other[BLOCKID_IDX]:
             print("blockId not equal ",self[BLOCKID_IDX],other[BLOCKID_IDX])
             return False
@@ -160,7 +166,7 @@ class OM70Datum(_OM70DatumT):
 def fromBuffer(buffer):
     """Treat Buffer as a raw UDP packet from OM70, unpack and create OM70Datum namedTuple"""
     nt = OM70Datum._make(_om70struct.unpack(buffer))
-    print("fromBuffer tuple: ", nt)
+    #print("fromBuffer tuple: ", nt)
     return nt
 
 def makeRandomOm70():
